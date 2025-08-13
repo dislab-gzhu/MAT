@@ -208,17 +208,7 @@ def MAT_with_attention(images, gt, model, min, max, model_name, image_size):
     attention = get_multilayer_attention(model, images, gt, model_name)
     for i in range(num_iter):
         noise = 0
-        for n in range(N):
-            x_aug = random_augment(x, attention)
-            if x_aug.size() != x.size():
-                x_aug = Resize(x_aug)
-            x_adjusted = x + (x_aug - x) * (1 - attention)
-            x_new = gamma * x + (1 - gamma) * Resize(x_adjusted.detach()).clone() + torch.randn_like(x).uniform_(-eps * beta, eps * beta)
-            x_new = V(x_new, requires_grad=True)
-            x_new_di = DI_transform(x_new)
-            output_v3 = model(x_new_di)
-            loss = F.cross_entropy(output_v3, gt)
-            noise += torch.autograd.grad(loss, x_new, retain_graph=False, create_graph=False)[0]
+        #### core function will be provided soon
         noise = noise / N
         noise = noise / torch.abs(noise).mean([1, 2, 3], keepdim=True)
         grad = momentum * grad + noise
