@@ -8,4 +8,23 @@ This is pytorch repository of "Harnessing Transferable Adversarial Examples via 
 
 3: run MAT.py to generate adversaial examples
 
-5: evaluate the generated samples in the 'output_dir' folder
+4: evaluate the generated samples in the 'output_dir' folder
+
+5: run main.py
+
+
+
+
+## Citation
+
+If you find this work useful, please cite:
+
+```bibtex
+@article{Dong2026HarnessingTA,
+  title={Harnessing Transferable Adversarial Examples via Multilayer Attention-Guided Spatial Transformations},
+  author={Pengfei Dong and Yatie Xiao and Chi-man Pun and Fei Peng and Kongyang Chen and Qingxian Guan and Siyuan Chen and Xiangyu Ye and Zhenbang Liu},
+  journal={IEEE Transactions on Reliability},
+  year={2026},
+  volume={75},
+  pages={1006-1019}
+}
