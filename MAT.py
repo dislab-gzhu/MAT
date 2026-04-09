@@ -11,6 +11,7 @@ import pretrainedmodels
 import random
 import timm
 import math
+
 from attack_methods import DI, gkern, Admix
 from Normalize import Normalize
 from loader import ImageNet
@@ -35,6 +36,7 @@ opt = parser.parse_args()
 
 os.environ["CUDA_VISIBLE_DEVICES"] = '1'
 
+
 name_mapping = {
     'twins_pcpvt_base': 'Twins-B',
 }
@@ -47,8 +49,9 @@ def clip_by_tensor(t, t_min, t_max):
     result = (result <= t_max).float() * result + (result > t_max).float() * t_max
     return result
 
+
 def save_image(images, names, output_dir, model_name):
-    model_output_dir = os.path.join(output_dir, f"MAT-{model_name}")
+    model_output_dir = os.path.join(output_dir, f"MAS-{model_name}")
     if not os.path.exists(model_output_dir):
         os.makedirs(model_output_dir)
     for i, name in enumerate(names):
@@ -56,8 +59,9 @@ def save_image(images, names, output_dir, model_name):
         save_name = name
         img.save(os.path.join(model_output_dir, save_name))
 
+
 def check_if_already_generated(output_dir, model_name):
-    model_output_dir = os.path.join(output_dir, f"MAT-{model_name}")
+    model_output_dir = os.path.join(output_dir, f"MAS-{model_name}")
     if os.path.exists(model_output_dir) and len(os.listdir(model_output_dir)) > 0:
         return True
     return False
@@ -65,101 +69,118 @@ def check_if_already_generated(output_dir, model_name):
 def get_multilayer_attention(model, images, gt, model_name):
     images = V(images, requires_grad=True)
     features = []
+
     def hook_fn(module, input, output):
         features.append(output)
+
     hooks = []
-    base_model = model[1]
-    try:
-        if model_name == 'inceptionv3':
-            hooks = [
-                base_model.Mixed_5d.register_forward_hook(hook_fn),
-                base_model.Mixed_6e.register_forward_hook(hook_fn),
-                base_model.Mixed_7c.register_forward_hook(hook_fn)
-            ]
-        elif model_name in ['resnet50', 'resnet101']:
-            hooks = [
-                base_model.layer2.register_forward_hook(hook_fn),
-                base_model.layer3.register_forward_hook(hook_fn),
-                base_model.layer4.register_forward_hook(hook_fn)
-            ]
-        elif model_name == 'densenet121':
-            hooks = [
-                base_model.features.denseblock2.register_forward_hook(hook_fn),
-                base_model.features.denseblock3.register_forward_hook(hook_fn),
-                base_model.features.denseblock4.register_forward_hook(hook_fn)
-            ]
-        elif model_name == 'mobilenetv2_100':
-            hooks = [
-                base_model.blocks[5][-1].conv_pwl.register_forward_hook(hook_fn),
-                base_model.blocks[6][-1].conv_pwl.register_forward_hook(hook_fn),
-                base_model.conv_head.register_forward_hook(hook_fn)
-            ]
-        elif model_name in ['vit_base_patch16_224', 'vit_base_patch32_224']:
-            hooks = [
-                base_model.blocks[9].register_forward_hook(hook_fn),
-                base_model.blocks[10].register_forward_hook(hook_fn),
-                base_model.blocks[11].register_forward_hook(hook_fn)
-            ]
-        elif model_name == 'vit_large_patch32_224':
-            hooks = [
-                base_model.blocks[21].register_forward_hook(hook_fn),
-                base_model.blocks[22].register_forward_hook(hook_fn),
-                base_model.blocks[23].register_forward_hook(hook_fn)
-            ]
-        elif model_name == 'twins_pcpvt_base':
-            try:
-                hooks = [
-                    base_model.blocks[2][-1].attn.register_forward_hook(hook_fn),
-                    base_model.blocks[3][-1].attn.register_forward_hook(hook_fn)
-                ]
-            except AttributeError as e:
-                raise
-        elif model_name == 'swin_tiny_patch4_window7_224':
-            hooks = [
-                base_model.layers[2].register_forward_hook(hook_fn),
-                base_model.layers[3].register_forward_hook(hook_fn)
-            ]
-        else:
-            raise ValueError(f"Unsupported model: {model_name}")
-    except AttributeError as e:
+    base_model = model[1]  
+    if model_name == 'inceptionv3':
+        hooks = [
+            base_model.Mixed_5d.register_forward_hook(hook_fn),
+            base_model.Mixed_6e.register_forward_hook(hook_fn),
+            base_model.Mixed_7c.register_forward_hook(hook_fn)
+        ]
+    elif model_name in ['resnet50', 'resnet101']:
+        hooks = [
+            base_model.layer2.register_forward_hook(hook_fn),
+            base_model.layer3.register_forward_hook(hook_fn),
+            base_model.layer4.register_forward_hook(hook_fn)
+        ]
+    elif model_name == 'densenet121':
+        hooks = [
+            base_model.features.denseblock2.register_forward_hook(hook_fn),
+            base_model.features.denseblock3.register_forward_hook(hook_fn),
+            base_model.features.denseblock4.register_forward_hook(hook_fn)
+        ]
+    elif model_name == 'mobilenetv2_100':
+        hooks = [
+            base_model.blocks[5][-1].conv_pwl.register_forward_hook(hook_fn),
+            base_model.blocks[6][-1].conv_pwl.register_forward_hook(hook_fn),
+            base_model.conv_head.register_forward_hook(hook_fn)
+        ]
+    elif model_name in ['vit_base_patch16_224', 'vit_base_patch32_224']:
+        hooks = [
+            base_model.blocks[9].register_forward_hook(hook_fn),
+            base_model.blocks[10].register_forward_hook(hook_fn),  
+            base_model.blocks[11].register_forward_hook(hook_fn)
+        ]
+    elif model_name == 'vit_large_patch32_224':
+        hooks = [
+            base_model.blocks[21].register_forward_hook(hook_fn),
+            base_model.blocks[22].register_forward_hook(hook_fn),
+            base_model.blocks[23].register_forward_hook(hook_fn)
+        ]
+    elif model_name == 'twins_pcpvt_base':
+        hooks = [
+            base_model.stages[2].register_forward_hook(hook_fn),
+            base_model.stages[3].register_forward_hook(hook_fn)
+        ]
+    elif model_name == 'swin_tiny_patch4_window7_224':
+        hooks = [
+            base_model.layers[2].register_forward_hook(hook_fn),
+            base_model.layers[3].register_forward_hook(hook_fn)
+        ]
+    else:
         output = model(images)
         attention = torch.ones(images.shape[0], 1, images.shape[2], images.shape[3]).cuda()
         return attention
+
+
     output = model(images)
     for hook in hooks:
         hook.remove()
-    if not features:
-        attention = torch.ones(images.shape[0], 1, images.shape[2], images.shape[3]).cuda()
-        return attention
+
     loss = -output[range(len(gt)), gt].sum()
     model.zero_grad()
+
+    
     grads = torch.autograd.grad(loss, [f for f in features], create_graph=False)
+
     attention = 0
     for feature, grad in zip(features, grads):
+        print(f"Feature shape: {feature.shape}")
+        print(f"Grad shape: {grad.shape}")
+
         if model_name in ['vit_base_patch16_224', 'vit_base_patch32_224', 'vit_large_patch32_224']:
+           
             batch, num_patches, dim = feature.shape
-            spatial_size = int(math.sqrt(num_patches - 1))
-            weight = grad.abs()[:, 1:, :].mean(dim=2, keepdim=True)
-            weighted_feature = (feature[:, 1:, :] * weight).sum(dim=2, keepdim=True)
-            weighted_feature = weighted_feature.view(batch, 1, spatial_size, spatial_size)
+            spatial_size = int(math.sqrt(num_patches - 1)) 
+            
+            weight = grad.abs()[:, 1:, :].mean(dim=2, keepdim=True)  
+            weighted_feature = (feature[:, 1:, :] * weight).sum(dim=2, keepdim=True)  
+            weighted_feature = weighted_feature.view(batch, 1, spatial_size,
+                                                     spatial_size)  
         elif model_name in ['twins_pcpvt_base']:
-            if len(feature.shape) == 4:
-                weight = grad.abs().mean(dim=1, keepdim=True)
-                weighted_feature = (feature * weight).mean(dim=1, keepdim=True)
-            else:
+            
+            if len(feature.shape) == 4:  
+                weight = grad.abs().mean(dim=1, keepdim=True)  
+                weighted_feature = (feature * weight).mean(dim=1, keepdim=True)  
+            else:  
                 batch, num_patches, dim = feature.shape
                 spatial_size = int(math.sqrt(num_patches))
-                weight = grad.abs().mean(dim=2, keepdim=True)
-                weighted_feature = (feature * weight).sum(dim=2, keepdim=True)
+                weight = grad.abs().mean(dim=2, keepdim=True)  
+                weighted_feature = (feature * weight).sum(dim=2, keepdim=True)  
                 weighted_feature = weighted_feature.view(batch, 1, spatial_size, spatial_size)
         else:
-            weight = grad.abs().mean(dim=1, keepdim=True)
-            weighted_feature = (feature * weight).mean(dim=1, keepdim=True)
-        weighted_feature = F.interpolate(weighted_feature, size=(images.shape[2], images.shape[3]), mode='bilinear', align_corners=False)
+           
+            weight = grad.abs().mean(dim=1, keepdim=True)  
+            weighted_feature = (feature * weight).mean(dim=1, keepdim=True) 
+
+        print(f"Weighted feature shape: {weighted_feature.shape}")
+
+       
+        weighted_feature = F.interpolate(weighted_feature, size=(images.shape[2], images.shape[3]), mode='bilinear',
+                                         align_corners=False)
         attention += weighted_feature
+
     attention = attention / len(features)
     attention = (attention - attention.min()) / (attention.max() - attention.min() + 1e-8)
+
+    print(f"Final attention shape: {attention.shape}")
     return attention
+
+
 
 def DI_transform(x, max_size=330):
     batch_size, channels, height, width = x.shape
@@ -175,6 +196,7 @@ def DI_transform(x, max_size=330):
         x_padded = x_padded[:, :, start_h:start_h + height, start_w:start_w + width]
     return x_padded
 
+
 def random_augment(x, attention):
     batch_size, _, height, width = x.shape
     augmented_images = []
@@ -184,8 +206,8 @@ def random_augment(x, attention):
         transforms_list = [
             T.RandomRotation(degrees=(-10, 10)),
             T.RandomAffine(degrees=0, translate=(0.1, 0.1)),
-            T.RandomResizedCrop(size=(height, width), scale=(0.9, 1.1))
-            
+            T.RandomResizedCrop(size=(height, width), scale=(0.9, 1.1)),
+          
         ]
         selected_transforms = random.sample(transforms_list, 1)
         transform = T.Compose(selected_transforms)
@@ -194,7 +216,8 @@ def random_augment(x, attention):
         augmented_images.append(img_adjusted)
     return torch.stack(augmented_images)
 
-def MAT_with_attention(images, gt, model, min, max, model_name, image_size):
+
+def MAS_with_attention(images, gt, model, min, max, model_name, image_size):
     Resize = T.Resize(size=(image_size, image_size))
     momentum = opt.momentum
     num_iter = opt.num_iter_set
@@ -208,7 +231,18 @@ def MAT_with_attention(images, gt, model, min, max, model_name, image_size):
     attention = get_multilayer_attention(model, images, gt, model_name)
     for i in range(num_iter):
         noise = 0
-        #### core function will be provided soon
+        for n in range(N):
+            x_aug = random_augment(x, attention)
+            if x_aug.size() != x.size():
+                x_aug = Resize(x_aug)
+            x_adjusted = x + (x_aug - x) * (1 - attention)
+            x_new = gamma * x + (1 - gamma) * Resize(x_adjusted.detach()).clone() + \
+                    torch.randn_like(x).uniform_(-eps * beta, eps * beta)
+            x_new = V(x_new, requires_grad=True)
+            x_new_di = DI_transform(x_new)
+            output_v3 = model(x_new_di)
+            loss = F.cross_entropy(output_v3, gt)
+            noise += torch.autograd.grad(loss, x_new, retain_graph=False, create_graph=False)[0]
         noise = noise / N
         noise = noise / torch.abs(noise).mean([1, 2, 3], keepdim=True)
         grad = momentum * grad + noise
@@ -237,8 +271,11 @@ def load_model(model_name):
     ).cuda()
     return model, image_size
 
+
+
 def main():
     for model_name, mapped_name in name_mapping.items():
+       
         if check_if_already_generated(opt.output_dir, mapped_name):
             continue
         model, image_size = load_model(model_name)
@@ -250,7 +287,7 @@ def main():
             images = images.cuda()
             images_min = clip_by_tensor(images - opt.max_epsilon / 255.0, 0.0, 1.0)
             images_max = clip_by_tensor(images + opt.max_epsilon / 255.0, 0.0, 1.0)
-            adv_img = MAT_with_attention(images, gt, model, images_min, images_max, model_name, image_size)
+            adv_img = MAS_with_attention(images, gt, model, images_min, images_max, model_name, image_size)
             adv_img_np = adv_img.cpu().numpy()
             adv_img_np = np.transpose(adv_img_np, (0, 2, 3, 1)) * 255
             save_image(adv_img_np, images_ID, opt.output_dir, mapped_name)
