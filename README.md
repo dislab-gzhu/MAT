@@ -1,8 +1,6 @@
 # MAT
 This is pytorch repository of "Harnessing Transferable Adversarial Examples via Multi-layer Attention-guided Spatial Transformations"
 
-Note that,  core functions will be updated once the paper has been accepted for publication.
-
 # Adversarial Process
 1: download data into 'input_dir',
 
