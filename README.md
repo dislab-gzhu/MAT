@@ -6,11 +6,9 @@ This is pytorch repository of "Harnessing Transferable Adversarial Examples via 
 
 2: download the pre-trained models' checkpoints to 'model_path',
 
-3: run MAT.py to generate adversaial examples
+3: run main.py to generate adversaial examples
 
 4: evaluate the generated samples in the 'output_dir' folder
-
-5: run main.py
 
 
 
